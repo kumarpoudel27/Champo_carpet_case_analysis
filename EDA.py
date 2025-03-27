@@ -6,9 +6,15 @@ from wordcloud import WordCloud
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
+import os  # Added import
+
+# Create Plots directory if it doesn't exist
+plots_dir = "Plots"
+os.makedirs(plots_dir, exist_ok=True)
 
 # Load the dataset
-file_path = "/Users/kumarpoudel/Downloads/IMB881.xlsx"
+# file_path = "/Users/kumarpoudel/Downloads/IMB881.xlsx" # Changed to relative path
+file_path = "IMB881.xlsx"  # Assumes file is in the same directory as the script
 df = pd.read_excel(file_path, sheet_name="Raw Data-Order and Sample")
 
 # === GENERAL REVIEW ===
@@ -31,7 +37,9 @@ print(f"\nDuplicate Rows After Cleaning: {df.duplicated().sum()}")
 print("\nMissing Values After Cleaning:\n", df.isnull().sum())
 
 # Save cleaned dataset
-cleaned_file_path = "/Users/kumarpoudel/Desktop/Champo_Carpet_Analysis/cleaned_data.csv"
+# Use relative path for cleaned data as well
+cleaned_file_path = "cleaned_data.csv"
+# cleaned_file_path = "/Users/kumarpoudel/Desktop/Champo_Carpet_Analysis/cleaned_data.csv"
 df.to_csv(cleaned_file_path, index=False)
 print(f"\nData cleaning completed! Cleaned file saved as: {cleaned_file_path}")
 
@@ -44,6 +52,12 @@ def plot_pie_chart(column, title, colors=["#ff9999", "#66b3ff", "#99ff99"]):
     df[column].value_counts().plot.pie(autopct="%1.1f%%", colors=colors)
     plt.title(title)
     plt.ylabel("")
+    # Save plot using a descriptive name based on the title
+    save_path = os.path.join(
+        plots_dir, f"figure_1_{title.lower().replace(' ', '_')}.png"
+    )
+    plt.savefig(save_path)
+    print(f"Saved plot: {save_path}")
     plt.show()
 
 
@@ -59,6 +73,10 @@ def plot_bar_chart(column, title, xlabel, ylabel):
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.xticks(rotation=45)
+    # Save plot using a descriptive name based on the title
+    save_path = os.path.join(plots_dir, f"figure_{title.lower().replace(' ', '_')}.png")
+    plt.savefig(save_path)
+    print(f"Saved plot: {save_path}")
     plt.show()
 
 
@@ -67,31 +85,45 @@ plot_pie_chart("OrderType", "Order Type Distribution")
 
 # 2. Geographical Sales Map
 if "Country" in df.columns:
-    px.scatter_geo(
+    fig_geo = px.scatter_geo(  # Capture figure object
         df,
         locations="Country",
         locationmode="country names",
         size="Amount",
         title="Geographical Sales Map",
-    ).show()
+    )
+    # Save Plotly figure
+    save_path_geo = os.path.join(plots_dir, "figure_2_geographical_sales_map.png")
+    try:
+        fig_geo.write_image(save_path_geo)
+        print(f"Saved plot: {save_path_geo}")
+    except Exception as e:
+        print(f"Could not save Plotly figure {save_path_geo}. Error: {e}")
+        print("Ensure you have 'kaleido' installed (`pip install -U kaleido`)")
+    fig_geo.show()
+
 
 # 3. Product Category Bar Chart
 if "ProductCategory" in df.columns:
     plot_bar_chart(
         "ProductCategory", "Product Category Distribution", "Product Category", "Count"
-    )
+    ) # Saved internally by helper function
 
 # 4. Monthly Sales Trend Line
 df["Custorderdate"] = pd.to_datetime(df["Custorderdate"], errors="coerce")
 df["MonthYear"] = df["Custorderdate"].dt.to_period("M")
 monthly_sales = df.groupby("MonthYear").size()
-plt.figure(figsize=(12, 6))
+fig4 = plt.figure(figsize=(12, 6))  # Capture figure object
 monthly_sales.plot(marker="o", linestyle="-", color="b")
 plt.title("Monthly Sales Trend")
 plt.xlabel("Month")
 plt.ylabel("Number of Orders")
 plt.xticks(rotation=45)
 plt.grid(True)
+# Save plot using figure object
+save_path_trend = os.path.join(plots_dir, "figure_4_monthly_sales_trend.png")
+fig4.savefig(save_path_trend)
+print(f"Saved plot: {save_path_trend}")
 plt.show()
 
 # 5. Customer Order Frequency (Top 10)
@@ -101,13 +133,17 @@ plot_bar_chart(
     "Top Customers by Order Frequency",
     "Customer ID",
     "Number of Orders",
-)
+) # Saved internally by helper function
 
 # 6. Price Distribution Box Plot
-plt.figure(figsize=(10, 6))
+fig6 = plt.figure(figsize=(10, 6)) # Capture figure object
 sns.boxplot(x=df["Amount"])
 plt.title("Price Distribution by Product Category")
 plt.xlabel("Amount")
+# Save plot
+save_path_box = os.path.join(plots_dir, "figure_6_price_distribution_boxplot.png")
+fig6.savefig(save_path_box)
+print(f"Saved plot: {save_path_box}")
 plt.show()
 
 # 7. Color Popularity Word Cloud
@@ -115,18 +151,26 @@ if "Color" in df.columns:
     wordcloud = WordCloud(width=800, height=400, background_color="white").generate(
         " ".join(df["Color"].dropna())
     )
-    plt.figure(figsize=(10, 6))
+    fig7 = plt.figure(figsize=(10, 6)) # Capture figure object
     plt.imshow(wordcloud, interpolation="bilinear")
     plt.axis("off")
     plt.title("Color Popularity Word Cloud")
+    # Save plot
+    save_path_cloud = os.path.join(plots_dir, "figure_7_color_popularity_wordcloud.png")
+    fig7.savefig(save_path_cloud)
+    print(f"Saved plot: {save_path_cloud}")
     plt.show()
 
 # 8. Order Size Distribution Histogram
-plt.figure(figsize=(10, 6))
+fig8 = plt.figure(figsize=(10, 6)) # Capture figure object
 sns.histplot(df["QtyRequired"], bins=30, kde=True, color="purple")
 plt.title("Order Size Distribution")
 plt.xlabel("Quantity")
 plt.ylabel("Frequency")
+# Save plot
+save_path_hist = os.path.join(plots_dir, "figure_8_order_size_histogram.png")
+fig8.savefig(save_path_hist)
+print(f"Saved plot: {save_path_hist}")
 plt.show()
 
 # === K-MEANS CLUSTERING ===
@@ -146,13 +190,17 @@ def perform_kmeans_clustering(data, features, k_values=[3, 4]):
     ]
 
     # Elbow Method Chart
-    plt.figure(figsize=(10, 6))
+    fig_elbow = plt.figure(figsize=(10, 6)) # Capture figure object
     plt.plot(range(1, 11), wcss, marker="o", linestyle="-")
     plt.xlabel("Number of Clusters (k)")
     plt.ylabel("WCSS (Within-Cluster Sum of Squares)")
     plt.title("Elbow Method for Optimal k")
     plt.xticks(range(1, 11))
     plt.grid(True)
+    # Save plot
+    save_path_elbow = os.path.join(plots_dir, "figure_9_kmeans_elbow_method.png")
+    fig_elbow.savefig(save_path_elbow)
+    print(f"Saved plot: {save_path_elbow}")
     plt.show()
 
     # Run clustering for selected k values
@@ -167,7 +215,7 @@ def perform_kmeans_clustering(data, features, k_values=[3, 4]):
     )
 
     # Visualize clusters
-    plt.figure(figsize=(10, 6))
+    fig_kmeans = plt.figure(figsize=(10, 6)) # Capture figure object
     sns.scatterplot(
         x=df_cluster["Amount"],
         y=df_cluster["QtyRequired"],
@@ -179,6 +227,10 @@ def perform_kmeans_clustering(data, features, k_values=[3, 4]):
     plt.xlabel("Order Amount ($)")
     plt.ylabel("Quantity Required")
     plt.grid(True)
+    # Save plot
+    save_path_kmeans = os.path.join(plots_dir, f"figure_10_customer_segments_k{optimal_k}.png")
+    fig_kmeans.savefig(save_path_kmeans)
+    print(f"Saved plot: {save_path_kmeans}")
     plt.show()
 
     # Cluster statistics
@@ -217,19 +269,7 @@ cluster_names = {
     2: "Low-Value, High-Quantity",
 }
 
-if "Cluster" in df.columns:
-    df["Segment"] = df["Cluster"].map(cluster_names)
-else:
-    print("Error: 'Cluster' column is missing. Clustering might have failed.")
-
-# Cluster-wise boxplot
-if "Cluster" in df.columns:
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(x="Cluster", y="Amount", data=df)
-    plt.title("Order Amount Distribution by Cluster")
-    plt.show()
-
-
+# Define functions first (moved from the bottom)
 def assign_cluster_names(df, cluster_column, cluster_names):
     """
     Assign meaningful names to clusters.
@@ -243,6 +283,7 @@ def assign_cluster_names(df, cluster_column, cluster_names):
     if cluster_column in df.columns:
         df["Segment"] = df[cluster_column].map(cluster_names)
     else:
+        # Raise error instead of just printing
         raise ValueError(
             f"Error: '{cluster_column}' column is missing. Clustering might have failed."
         )
@@ -251,7 +292,7 @@ def assign_cluster_names(df, cluster_column, cluster_names):
 
 def plot_cluster_boxplot(df, cluster_column, value_column, title):
     """
-    Plot a boxplot for a given cluster column and value column.
+    Plot a boxplot for a given cluster column and value column. Also saves the plot.
     Args:
         df (pd.DataFrame): The DataFrame containing the data.
         cluster_column (str): The name of the cluster column.
@@ -259,28 +300,26 @@ def plot_cluster_boxplot(df, cluster_column, value_column, title):
         title (str): The title of the plot.
     """
     if cluster_column in df.columns:
-        plt.figure(figsize=(10, 6))
+        fig_box_final = plt.figure(figsize=(10, 6)) # Capture figure object
         sns.boxplot(x=cluster_column, y=value_column, data=df)
         plt.title(title)
+        # Save plot
+        save_path_box_final = os.path.join(plots_dir, f"figure_11_{title.lower().replace(' ', '_')}.png")
+        fig_box_final.savefig(save_path_box_final)
+        print(f"Saved plot: {save_path_box_final}")
         plt.show()
     else:
+        # Raise error instead of just printing
         raise ValueError(
             f"Error: '{cluster_column}' column is missing. Cannot plot boxplot."
         )
 
-
-# Assign meaningful cluster names
-cluster_names = {
-    0: "High-Value, Low-Quantity",
-    1: "Medium-Value, Medium-Quantity",
-    2: "Low-Value, High-Quantity",
-}
-
+# Use the functions
 try:
     # Assign cluster names
     df = assign_cluster_names(df, "Cluster", cluster_names)
 
-    # Plot cluster-wise boxplot
+    # Plot cluster-wise boxplot (now also saves the plot)
     plot_cluster_boxplot(
         df,
         cluster_column="Cluster",
@@ -289,3 +328,5 @@ try:
     )
 except ValueError as e:
     print(e)
+
+# Removed redundant block that was previously here
