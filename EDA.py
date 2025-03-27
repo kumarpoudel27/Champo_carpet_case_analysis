@@ -228,3 +228,64 @@ if "Cluster" in df.columns:
     sns.boxplot(x="Cluster", y="Amount", data=df)
     plt.title("Order Amount Distribution by Cluster")
     plt.show()
+
+
+def assign_cluster_names(df, cluster_column, cluster_names):
+    """
+    Assign meaningful names to clusters.
+    Args:
+        df (pd.DataFrame): The DataFrame containing the cluster column.
+        cluster_column (str): The name of the column with cluster labels.
+        cluster_names (dict): A dictionary mapping cluster labels to names.
+    Returns:
+        pd.DataFrame: The updated DataFrame with a new 'Segment' column.
+    """
+    if cluster_column in df.columns:
+        df["Segment"] = df[cluster_column].map(cluster_names)
+    else:
+        raise ValueError(
+            f"Error: '{cluster_column}' column is missing. Clustering might have failed."
+        )
+    return df
+
+
+def plot_cluster_boxplot(df, cluster_column, value_column, title):
+    """
+    Plot a boxplot for a given cluster column and value column.
+    Args:
+        df (pd.DataFrame): The DataFrame containing the data.
+        cluster_column (str): The name of the cluster column.
+        value_column (str): The name of the value column to plot.
+        title (str): The title of the plot.
+    """
+    if cluster_column in df.columns:
+        plt.figure(figsize=(10, 6))
+        sns.boxplot(x=cluster_column, y=value_column, data=df)
+        plt.title(title)
+        plt.show()
+    else:
+        raise ValueError(
+            f"Error: '{cluster_column}' column is missing. Cannot plot boxplot."
+        )
+
+
+# Assign meaningful cluster names
+cluster_names = {
+    0: "High-Value, Low-Quantity",
+    1: "Medium-Value, Medium-Quantity",
+    2: "Low-Value, High-Quantity",
+}
+
+try:
+    # Assign cluster names
+    df = assign_cluster_names(df, "Cluster", cluster_names)
+
+    # Plot cluster-wise boxplot
+    plot_cluster_boxplot(
+        df,
+        cluster_column="Cluster",
+        value_column="Amount",
+        title="Order Amount Distribution by Cluster",
+    )
+except ValueError as e:
+    print(e)
